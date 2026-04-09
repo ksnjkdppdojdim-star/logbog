@@ -2,8 +2,11 @@ pub mod init;
 pub mod install;
 pub mod list;
 pub mod pack;
+pub mod query;
+pub mod remove;
 pub mod start;
 pub mod status;
+pub mod tail;
 
 use clap::{Parser, Subcommand};
 
@@ -41,7 +44,7 @@ pub enum Command {
         port: u16,
     },
 
-    /// Start the LogBog service
+    /// Start the LogBog collection pipeline
     Start {
         /// Run in foreground (don't daemonize)
         #[arg(short, long)]
@@ -51,7 +54,7 @@ pub enum Command {
     /// Stop the LogBog service
     Stop,
 
-    /// Show service status
+    /// Show service status and storage statistics
     Status,
 
     /// Install one or more log packs
@@ -81,6 +84,48 @@ pub enum Command {
         #[arg(long)]
         show: bool,
     },
+
+    /// Query stored logs
+    Query {
+        /// Raw SQL query (e.g., "SELECT * FROM logs WHERE level = 'error' LIMIT 10")
+        #[arg(long)]
+        sql: Option<String>,
+
+        /// Filter by source name
+        #[arg(short, long)]
+        source: Option<String>,
+
+        /// Filter by pack name
+        #[arg(short, long)]
+        pack: Option<String>,
+
+        /// Minimum log level (trace, debug, info, warn, error, fatal)
+        #[arg(short, long)]
+        level: Option<String>,
+
+        /// Search in message text
+        #[arg(long)]
+        search: Option<String>,
+
+        /// Maximum number of results
+        #[arg(short = 'n', long, default_value_t = 50)]
+        limit: usize,
+    },
+
+    /// Show the most recent logs (like tail -f)
+    Tail {
+        /// Filter by source name
+        #[arg(short, long)]
+        source: Option<String>,
+
+        /// Filter by pack name
+        #[arg(short, long)]
+        pack: Option<String>,
+
+        /// Number of lines to show
+        #[arg(short = 'n', long, default_value_t = 20)]
+        lines: usize,
+    },
 }
 
 pub fn run(cli: Cli) -> anyhow::Result<()> {
@@ -94,11 +139,7 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
         }
         Command::Status => status::run(&cli.config),
         Command::Install { packs } => install::run(&cli.config, &packs),
-        Command::Remove { pack } => {
-            crate::output::info(&format!("Removing pack '{pack}'..."));
-            crate::output::warn("Pack removal not yet implemented (Phase 1)");
-            Ok(())
-        }
+        Command::Remove { pack } => remove::run(&cli.config, &pack),
         Command::List => list::run(&cli.config),
         Command::Pack { action } => pack::run(action),
         Command::Config { show } => {
@@ -112,5 +153,26 @@ pub fn run(cli: Cli) -> anyhow::Result<()> {
             }
             Ok(())
         }
+        Command::Query {
+            sql,
+            source,
+            pack,
+            level,
+            search,
+            limit,
+        } => query::run(
+            &cli.config,
+            sql.as_deref(),
+            source.as_deref(),
+            pack.as_deref(),
+            level.as_deref(),
+            search.as_deref(),
+            limit,
+        ),
+        Command::Tail {
+            source,
+            pack,
+            lines,
+        } => tail::run(&cli.config, source.as_deref(), pack.as_deref(), lines),
     }
 }

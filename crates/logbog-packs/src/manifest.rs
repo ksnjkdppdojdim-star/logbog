@@ -1,3 +1,4 @@
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -108,29 +109,155 @@ impl PackManifest {
 
     /// Valide la cohérence du manifest.
     pub fn validate(&self) -> logbog_core::Result<()> {
+        // Pack name validation
         if self.pack.name.is_empty() {
             return Err(logbog_core::Error::PackInvalid("pack name is empty".into()));
         }
+        if !self
+            .pack
+            .name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "pack name '{}' contains invalid characters (use alphanumeric, - or _)",
+                self.pack.name
+            )));
+        }
+
+        // Version validation (semver-like)
         if self.pack.version.is_empty() {
             return Err(logbog_core::Error::PackInvalid(
                 "pack version is empty".into(),
             ));
         }
+        if !is_valid_semver(&self.pack.version) {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "pack version '{}' is not valid semver (expected X.Y.Z)",
+                self.pack.version
+            )));
+        }
+
+        // Sources validation
         if self.sources.is_empty() {
             return Err(logbog_core::Error::PackInvalid(
                 "pack has no sources defined".into(),
             ));
         }
         for source in &self.sources {
-            if source.paths.is_empty() {
+            self.validate_source(source)?;
+        }
+
+        // Alert severity validation
+        for alert in &self.alerts {
+            let valid_severities = ["info", "warning", "critical"];
+            if !valid_severities.contains(&alert.severity.as_str()) {
                 return Err(logbog_core::Error::PackInvalid(format!(
-                    "source '{}' has no paths",
+                    "alert '{}' has invalid severity '{}' (use info, warning, or critical)",
+                    alert.name, alert.severity
+                )));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Valide une source individuelle.
+    fn validate_source(&self, source: &PackSource) -> logbog_core::Result<()> {
+        if source.name.is_empty() {
+            return Err(logbog_core::Error::PackInvalid(
+                "source has empty name".into(),
+            ));
+        }
+        if source.paths.is_empty() {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "source '{}' has no paths",
+                source.name
+            )));
+        }
+
+        // Format validation
+        let valid_formats = [
+            "regex",
+            "grok",
+            "json",
+            "logfmt",
+            "syslog",
+            "syslog-auto",
+            "syslog-3164",
+            "syslog-5424",
+        ];
+        if !valid_formats.contains(&source.format.as_str()) {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "source '{}' uses unknown format '{}' (valid: {})",
+                source.name,
+                source.format,
+                valid_formats.join(", ")
+            )));
+        }
+
+        // Regex/grok sources must have a pattern
+        if (source.format == "regex" || source.format == "grok") && source.pattern.is_none() {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "source '{}' uses {} format but has no pattern",
+                source.name, source.format
+            )));
+        }
+
+        // Multiline sources must have multiline_start
+        if source.multiline && source.multiline_start.is_none() {
+            return Err(logbog_core::Error::PackInvalid(format!(
+                "source '{}' has multiline=true but no multiline_start pattern",
+                source.name
+            )));
+        }
+
+        // Validate regex pattern if provided
+        if let Some(ref pattern) = source.pattern {
+            if Regex::new(pattern).is_err() {
+                return Err(logbog_core::Error::PackInvalid(format!(
+                    "source '{}' has invalid regex pattern",
                     source.name
                 )));
             }
         }
+
+        // Validate multiline_start regex if provided
+        if let Some(ref pattern) = source.multiline_start {
+            if Regex::new(pattern).is_err() {
+                return Err(logbog_core::Error::PackInvalid(format!(
+                    "source '{}' has invalid multiline_start regex",
+                    source.name
+                )));
+            }
+        }
+
+        // Schema field type validation
+        if let Some(ref schema) = self.schema {
+            let valid_types = ["string", "int", "float", "bool", "ip", "timestamp"];
+            for field in &schema.fields {
+                if !valid_types.contains(&field.field_type.as_str()) {
+                    return Err(logbog_core::Error::PackInvalid(format!(
+                        "field '{}' has invalid type '{}' (valid: {})",
+                        field.name,
+                        field.field_type,
+                        valid_types.join(", ")
+                    )));
+                }
+            }
+        }
+
         Ok(())
     }
+}
+
+/// Basic semver validation (X.Y.Z with optional pre-release).
+fn is_valid_semver(version: &str) -> bool {
+    let parts: Vec<&str> = version.split('-').next().unwrap_or("").split('.').collect();
+    if parts.len() != 3 {
+        return false;
+    }
+    parts.iter().all(|p| p.parse::<u64>().is_ok())
 }
 
 #[cfg(test)]
@@ -218,5 +345,117 @@ description = "test"
 "#;
         let manifest: PackManifest = toml::from_str(toml_str).unwrap();
         assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_invalid_name_chars() {
+        let toml_str = r#"
+[pack]
+name = "my pack!!"
+version = "1.0.0"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "json"
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_invalid_version() {
+        let toml_str = r#"
+[pack]
+name = "test"
+version = "not-a-version"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "json"
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_unknown_format() {
+        let toml_str = r#"
+[pack]
+name = "test"
+version = "1.0.0"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "xml"
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_regex_without_pattern() {
+        let toml_str = r#"
+[pack]
+name = "test"
+version = "1.0.0"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "regex"
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_multiline_without_start() {
+        let toml_str = r#"
+[pack]
+name = "test"
+version = "1.0.0"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "json"
+multiline = true
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_validate_invalid_field_type() {
+        let toml_str = r#"
+[pack]
+name = "test"
+version = "1.0.0"
+description = "test"
+[[sources]]
+name = "test"
+paths = ["/test"]
+format = "json"
+[schema]
+fields = [
+    { name = "field1", type = "xml_element" },
+]
+"#;
+        let manifest: PackManifest = toml::from_str(toml_str).unwrap();
+        assert!(manifest.validate().is_err());
+    }
+
+    #[test]
+    fn test_is_valid_semver() {
+        assert!(super::is_valid_semver("1.0.0"));
+        assert!(super::is_valid_semver("0.1.0"));
+        assert!(super::is_valid_semver("10.20.30"));
+        assert!(super::is_valid_semver("1.0.0-beta"));
+        assert!(!super::is_valid_semver("1.0"));
+        assert!(!super::is_valid_semver("abc"));
+        assert!(!super::is_valid_semver(""));
     }
 }

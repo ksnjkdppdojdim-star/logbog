@@ -48,8 +48,23 @@ pub fn run(config_path: &str) -> anyhow::Result<()> {
         "Retention",
         &format!("{} days", config.storage.retention_days),
     );
-    output::item("Logs ingested", &format_number(status.logs_ingested));
-    output::item("Storage used", &format_bytes(status.storage_bytes));
+
+    // Try to open DuckDB for live stats
+    let db_path = config.server.data_dir.join("logbog.duckdb");
+    if db_path.exists() {
+        if let Ok(store) = logbog_storage::LogStore::open(&db_path) {
+            if let Ok(stats) = store.stats() {
+                output::item("Logs stored", &format_number(stats.total_logs));
+                output::item("Storage used", &format_bytes(stats.db_size_bytes));
+                for (source, count) in &stats.sources {
+                    output::item(&format!("  {source}"), &format_number(*count));
+                }
+            }
+        }
+    } else {
+        output::item("Logs ingested", &format_number(status.logs_ingested));
+        output::item("Storage used", &format_bytes(status.storage_bytes));
+    }
 
     output::header("Features");
     output::item(

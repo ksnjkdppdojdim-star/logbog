@@ -1,0 +1,5 @@
+{"timestamp":"2026-04-09T10:15:30Z","level":"error","message":"nginx.service: Main process exited, code=exited, status=1/FAILURE","unit":"nginx.service","priority":3,"pid":1234}
+{"timestamp":"2026-04-09T10:15:31Z","level":"info","message":"Started Nginx HTTP Server.","unit":"nginx.service","priority":6,"pid":1235}
+{"timestamp":"2026-04-09T10:15:32Z","level":"warning","message":"php8.2-fpm.service: Failed with result 'signal'.","unit":"php8.2-fpm.service","priority":4,"pid":1236}
+{"timestamp":"2026-04-09T10:15:33Z","level":"error","message":"Out of memory: Killed process 5678 (mysqld) total-vm:2048000kB","unit":"kernel","priority":2,"pid":0}
+{"timestamp":"2026-04-09T10:15:34Z","level":"info","message":"mysql.service: Scheduled restart job, restart counter is at 3.","unit":"mysql.service","priority":6,"pid":1}

@@ -1,7 +1,13 @@
 //! Couche de collecte de logs pour LogBog.
 //!
 //! Implémente la surveillance de fichiers, la lecture du journal systemd,
-//! et les récepteurs OTLP/syslog.
+//! et les récepteurs syslog.
+
+pub mod bookmark;
+pub mod file_watcher;
+pub mod journal;
+pub mod otlp;
+pub mod syslog_receiver;
 
 use logbog_core::RawLogLine;
 use tokio::sync::mpsc;

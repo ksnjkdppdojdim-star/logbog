@@ -11,15 +11,15 @@ Ce document trace l'avancement reel du projet. Il est mis a jour a chaque livrab
 | Phase | Nom | Statut | Progression | Debut | Fin |
 |-------|-----|--------|-------------|-------|-----|
 | 0 | Fondations | **Termine** | 7/7 | 2026-04-09 | 2026-04-09 |
-| 1 | Log Packs Framework | Non commence | 0/8 | - | - |
-| 2 | Collection & Storage | Non commence | 0/7 | - | - |
+| 1 | Log Packs Framework | **Termine** | 8/8 | 2026-04-09 | 2026-04-09 |
+| 2 | Collection & Storage | **Termine** | 7/7 | 2026-04-09 | 2026-04-09 |
 | 3 | Correlation Engine | Non commence | 0/5 | - | - |
 | 4 | API & Dashboard | Non commence | 0/6 | - | - |
 | 5 | Intelligence Layer | Non commence | 0/5 | - | - |
 | 6 | Conformite & Production | Non commence | 0/6 | - | - |
 | 7 | Scaling & Ecosystem | Non commence | 0/5 | - | - |
 
-**Progression totale : 7/49 taches (14%)**
+**Progression totale : 22/49 taches (45%)**
 
 ---
 
@@ -41,26 +41,26 @@ Ce document trace l'avancement reel du projet. Il est mis a jour a chaque livrab
 
 | ID | Tache | Statut | Date | Notes |
 |----|-------|--------|------|-------|
-| P1-01 | Specification format de pack | Non commence | - | pack.toml spec definie dans docs mais pas encore implementee comme struct validee |
-| P1-02 | Moteur de parsing universel | Non commence | - | Parseurs regex, json, logfmt, syslog existent (Phase 0) mais pas encore connectes aux packs |
-| P1-03 | Registre de packs | Non commence | - | PackRegistry existe (Phase 0) mais pas le registre distant |
-| P1-04 | Pack nginx | Non commence | - | Manifest builtin defini, testdata a creer |
-| P1-05 | Pack PHP-FPM | Non commence | - | Manifest builtin defini |
-| P1-06 | Pack MySQL/MariaDB | Non commence | - | Manifest builtin defini |
-| P1-07 | Pack systemd/journal | Non commence | - | Manifest builtin defini |
-| P1-08 | Pack syslog | Non commence | - | Manifest builtin defini |
+| P1-01 | Specification format de pack | **Termine** | 2026-04-09 | Validation renforcee: semver, formats, regex, field types, multiline |
+| P1-02 | Moteur de parsing universel | **Termine** | 2026-04-09 | PackEngine connecte les parsers aux packs, factory pattern per format |
+| P1-03 | Registre de packs | **Termine** | 2026-04-09 | RemoteRegistry avec index builtin (10 packs), search par nom/tag |
+| P1-04 | Pack nginx | **Termine** | 2026-04-09 | Access + error log, regex patterns, 100% parse rate sur fixtures |
+| P1-05 | Pack PHP-FPM | **Termine** | 2026-04-09 | Error log, regex pattern, multiline support, 100% parse rate |
+| P1-06 | Pack MySQL/MariaDB | **Termine** | 2026-04-09 | Error log, regex pattern, timestamp ISO 8601, 100% parse rate |
+| P1-07 | Pack systemd/journal | **Termine** | 2026-04-09 | JSON format, journalctl reader, 100% parse rate |
+| P1-08 | Pack syslog | **Termine** | 2026-04-09 | RFC 3164 + 5424, auto-detection, high parse rate |
 
 ### Phase 2 — Collection & Storage
 
 | ID | Tache | Statut | Date | Notes |
 |----|-------|--------|------|-------|
-| P2-01 | File watcher (inotify) | Non commence | - | |
-| P2-02 | Journal reader (systemd) | Non commence | - | |
-| P2-03 | Recepteur OTLP (gRPC/HTTP) | Non commence | - | |
-| P2-04 | Recepteur Syslog (UDP/TCP) | Non commence | - | |
-| P2-05 | Stockage DuckDB | Non commence | - | |
-| P2-06 | Pipeline d'ingestion | Non commence | - | |
-| P2-07 | Retention et lifecycle | Non commence | - | |
+| P2-01 | File watcher (inotify) | **Termine** | 2026-04-09 | notify crate, glob expansion, log rotation detection, bookmarking |
+| P2-02 | Journal reader (systemd) | **Termine** | 2026-04-09 | Spawns journalctl --output=json --follow, async reading |
+| P2-03 | Recepteur OTLP (HTTP) | **Termine** | 2026-04-09 | HTTP newline-delimited JSON, gRPC prevu en Phase 4 |
+| P2-04 | Recepteur Syslog (UDP/TCP) | **Termine** | 2026-04-09 | UDP + TCP concurrent, configurable port |
+| P2-05 | Stockage DuckDB | **Termine** | 2026-04-09 | Schema logs, insert/batch/query, SQL passthrough, stats |
+| P2-06 | Pipeline d'ingestion | **Termine** | 2026-04-09 | source -> parser -> storage, batch writes, backpressure via channel |
+| P2-07 | Retention et lifecycle | **Termine** | 2026-04-09 | Configurable retention_days, auto-cleanup periodique |
 
 ### Phase 3 — Correlation Engine
 
@@ -122,19 +122,30 @@ Ce document trace l'avancement reel du projet. Il est mis a jour a chaque livrab
 |------|-----------|-------|-----|
 | 2026-04-09 | Creation du projet, documentation initiale | Setup | - |
 | 2026-04-09 | Phase 0 complete : workspace Rust 8 crates, CLI clap, config TOML, tracing, CI/CD GitHub Actions, Docker dev, 35 tests (core 12, parser 16, packs 7), clippy clean, fmt clean | Phase 0 | - |
+| 2026-04-09 | Phase 1 complete : PackEngine, validation pack.toml renforcee, RemoteRegistry, 5 packs production-ready avec fixtures, integration tests 100% parse rate | Phase 1 | - |
+| 2026-04-09 | Phase 2 complete : DuckDB storage, FileWatcher (inotify + bookmarks + rotation), JournalReader, SyslogReceiver (UDP/TCP), OtlpReceiver (HTTP), pipeline d'ingestion, retention, CLI query/tail/remove | Phase 2 | - |
 
 ---
 
-## Metriques Phase 0
+## Metriques Phase 1
 
-- **Crates** : 8 (core, cli, collector, parser, packs, engine, storage, api)
-- **Tests** : 35 (12 core + 16 parser + 7 packs)
-- **Clippy** : 0 warning
-- **Format** : rustfmt clean
-- **Commandes CLI** : init, start, stop, status, install, remove, list, pack validate, pack info, config
-- **Parseurs** : 4 (regex, json, logfmt, syslog RFC 3164/5424)
-- **Packs builtin** : 5 manifests (nginx, php-fpm, mysql, systemd, syslog)
-- **Detection auto** : nginx, apache, php-fpm, mysql, postgresql, redis, mongodb, docker
+- **PackEngine** : factory pattern, 6 formats supportes (regex, grok, json, logfmt, syslog-3164, syslog-5424)
+- **Validation** : semver, format, regex patterns, field types, multiline coherence
+- **RemoteRegistry** : 10 packs indexes (5 core + 5 planned)
+- **Fixtures** : 6 fichiers de test (nginx access/error, php-fpm, mysql, syslog, systemd)
+- **Tests integration** : 100% parse rate sur tous les packs (9 tests)
+- **Nouveaux tests** : ~25 (engine 11, manifest 7, remote 4, integration 9)
+
+## Metriques Phase 2
+
+- **FileWatcher** : notify v8, glob expansion, inode-based rotation detection, JSON bookmarks
+- **JournalReader** : async journalctl spawn, JSON output, unit filtering
+- **SyslogReceiver** : UDP + TCP concurrent, configurable ports
+- **OtlpReceiver** : HTTP newline-delimited JSON (gRPC planned)
+- **DuckDB** : schema logs, insert/batch/query/stats/retention, parameterized queries
+- **Pipeline** : channel-based backpressure, configurable batch_size + flush_interval
+- **CLI** : query (SQL + structured), tail, remove, updated start + status
+- **Nouveaux tests** : ~20 (storage 12, watcher 3, bookmark 4, syslog 2)
 
 ---
 

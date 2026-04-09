@@ -108,6 +108,7 @@ description = "Nginx logs"
 name = "access"
 paths = ["/var/log/nginx/access.log"]
 format = "regex"
+pattern = '(?P<client_ip>\S+) - (?P<remote_user>\S+) \[(?P<timestamp>[^\]]+)\] "(?P<method>\S+) (?P<uri>\S+) HTTP/\S+" (?P<status>\d+) (?P<body_bytes>\d+)'
 "#,
         )
         .unwrap();
