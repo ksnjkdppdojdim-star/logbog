@@ -1,0 +1,16 @@
+[package]
+name = "logbog-parser"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Universal log parsing engine for LogBog"
+
+[dependencies]
+logbog-core = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }

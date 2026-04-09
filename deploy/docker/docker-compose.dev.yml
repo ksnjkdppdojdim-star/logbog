@@ -1,0 +1,70 @@
+# LogBog — Development environment
+# Generates real logs from nginx, php-fpm, and mysql for testing.
+#
+# Usage:
+#   docker-compose -f deploy/docker/docker-compose.dev.yml up -d
+#   logbog install nginx php-fpm mysql
+#   logbog start --foreground
+
+services:
+  # Nginx — generates access and error logs
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - nginx-logs:/var/log/nginx
+    restart: unless-stopped
+
+  # PHP-FPM — generates error and slow logs
+  php-fpm:
+    image: php:8.3-fpm-alpine
+    volumes:
+      - php-logs:/var/log/php-fpm
+    restart: unless-stopped
+
+  # MySQL — generates error and slow query logs
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: logbog_dev
+      MYSQL_DATABASE: logbog_test
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - mysql-logs:/var/log/mysql
+    command: >
+      --slow-query-log=ON
+      --slow-query-log-file=/var/log/mysql/slow.log
+      --long-query-time=0.5
+      --log-error=/var/log/mysql/error.log
+    restart: unless-stopped
+
+  # Log generator — produces synthetic log traffic
+  log-generator:
+    image: alpine:latest
+    depends_on:
+      - nginx
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apk add --no-cache curl
+        while true; do
+          # Normal requests
+          curl -s http://nginx/ > /dev/null
+          curl -s http://nginx/api/users > /dev/null
+          curl -s http://nginx/api/health > /dev/null
+          # Occasional 404s
+          curl -s http://nginx/nonexistent > /dev/null
+          # Random delay
+          sleep $$(( RANDOM % 3 + 1 ))
+        done
+    restart: unless-stopped
+
+volumes:
+  nginx-logs:
+  php-logs:
+  mysql-data:
+  mysql-logs:

@@ -1,0 +1,89 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/logbog-core",
+    "crates/logbog-cli",
+    "crates/logbog-collector",
+    "crates/logbog-parser",
+    "crates/logbog-packs",
+    "crates/logbog-engine",
+    "crates/logbog-storage",
+    "crates/logbog-api",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["LogBog Contributors"]
+license = "Apache-2.0"
+repository = "https://github.com/ksnjkdppdojdim-star/logbog"
+description = "Modular server log management framework with intelligence"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+
+# CLI
+clap = { version = "4", features = ["derive", "env", "color"] }
+
+# Logging / Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
+
+# Error handling
+thiserror = "2"
+anyhow = "1"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# IDs
+ulid = { version = "1", features = ["serde"] }
+
+# Regex
+regex = "1"
+
+# File watching
+notify = "8"
+
+# HTTP API
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# Database
+duckdb = { version = "1", features = ["bundled"] }
+
+# Full-text search
+tantivy = "0.22"
+
+# gRPC
+tonic = "0.12"
+prost = "0.13"
+
+# Colored output
+colored = "3"
+
+# Directory paths
+dirs = "6"
+
+# Internal crates
+logbog-core = { path = "crates/logbog-core" }
+logbog-cli = { path = "crates/logbog-cli" }
+logbog-collector = { path = "crates/logbog-collector" }
+logbog-parser = { path = "crates/logbog-parser" }
+logbog-packs = { path = "crates/logbog-packs" }
+logbog-engine = { path = "crates/logbog-engine" }
+logbog-storage = { path = "crates/logbog-storage" }
+logbog-api = { path = "crates/logbog-api" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

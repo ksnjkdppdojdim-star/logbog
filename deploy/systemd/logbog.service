@@ -1,0 +1,33 @@
+[Unit]
+Description=LogBog — Modular Server Log Management
+Documentation=https://github.com/ksnjkdppdojdim-star/logbog
+After=network.target
+
+[Service]
+Type=simple
+User=logbog
+Group=logbog
+ExecStart=/usr/local/bin/logbog start --foreground -c /etc/logbog/logbog.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths=/var/lib/logbog /var/log/logbog
+ReadOnlyPaths=/var/log
+PrivateTmp=yes
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=logbog
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

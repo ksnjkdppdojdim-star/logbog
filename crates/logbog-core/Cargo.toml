@@ -1,0 +1,19 @@
+[package]
+name = "logbog-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core types, traits, and error definitions for LogBog"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+ulid = { workspace = true }
+thiserror = { workspace = true }
+toml = { workspace = true }
+dirs = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

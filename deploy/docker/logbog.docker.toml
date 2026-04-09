@@ -1,0 +1,50 @@
+# LogBog Docker configuration
+
+[server]
+host = "0.0.0.0"
+port = 6060
+data_dir = "/var/lib/logbog"
+
+[storage]
+engine = "duckdb"
+retention_days = 30
+max_size_gb = 10
+
+[collector]
+batch_size = 1000
+flush_interval_ms = 500
+
+[collector.otlp]
+enabled = true
+grpc_port = 4317
+http_port = 4318
+
+[collector.syslog]
+enabled = true
+udp_port = 5514
+tcp_port = 5514
+
+[correlation]
+enabled = true
+window_seconds = 2
+min_confidence = 0.7
+
+[intelligence]
+anomaly_detection = true
+error_clustering = true
+learning_window_days = 7
+
+[intelligence.llm]
+enabled = false
+provider = "ollama"
+model = "llama3"
+endpoint = "http://localhost:11434"
+
+[alerting]
+enabled = true
+channels = []
+
+[compliance]
+pii_detection = false
+pii_masking = "redact"
+audit_log = false
