@@ -1,0 +1,45 @@
+# Rust
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# LogBog runtime
+/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Logs (ironic)
+*.log
+
+# Build artifacts
+/dist/
+/release/
+
+# Node (for web dashboard)
+web/node_modules/
+web/.svelte-kit/
+web/build/
+
+# Docker
+docker-compose.override.yml
+
+# Test artifacts
+tests/tmp/
+tests/output/
