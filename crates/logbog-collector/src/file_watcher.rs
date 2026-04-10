@@ -7,8 +7,8 @@ use logbog_core::RawLogLine;
 use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use tracing::{debug, info, warn};
 
-use crate::bookmark::BookmarkManager;
 use crate::LogSender;
+use crate::bookmark::BookmarkManager;
 
 /// Tracks a single watched file.
 struct TrackedFile {
@@ -39,9 +39,7 @@ impl FileWatcher {
 
     /// Register a file to watch. Resolves the path and loads any existing bookmark.
     pub fn add_file(&mut self, path: PathBuf, pack: String, source: String) {
-        let canonical = path
-            .canonicalize()
-            .unwrap_or_else(|_| path.clone());
+        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
 
         let offset = self
             .bookmarks
@@ -106,8 +104,8 @@ impl FileWatcher {
         // Watch parent directories of all tracked files
         let mut watched_dirs = HashSet::new();
         for path in self.files.keys() {
-            if let Some(parent) = path.parent() {
-                if parent.exists() && watched_dirs.insert(parent.to_path_buf()) {
+            if let Some(parent) = path.parent()
+                && parent.exists() && watched_dirs.insert(parent.to_path_buf()) {
                     watcher
                         .watch(parent, RecursiveMode::NonRecursive)
                         .map_err(|e| {
@@ -118,7 +116,6 @@ impl FileWatcher {
                         })?;
                     info!(dir = %parent.display(), "Watching directory");
                 }
-            }
         }
 
         // Initial catch-up: read from last known offset to current end
@@ -135,23 +132,17 @@ impl FileWatcher {
         while let Some(result) = event_rx.recv().await {
             match result {
                 Ok(event) => {
-                    if matches!(
-                        event.kind,
-                        EventKind::Modify(_) | EventKind::Create(_)
-                    ) {
+                    if matches!(event.kind, EventKind::Modify(_) | EventKind::Create(_)) {
                         for path in &event.paths {
-                            let canonical = path
-                                .canonicalize()
-                                .unwrap_or_else(|_| path.clone());
-                            if self.files.contains_key(&canonical) {
-                                if let Err(e) = self.read_new_lines(&canonical).await {
+                            let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
+                            if self.files.contains_key(&canonical)
+                                && let Err(e) = self.read_new_lines(&canonical).await {
                                     warn!(
                                         path = %canonical.display(),
                                         error = %e,
                                         "Failed to read new lines"
                                     );
                                 }
-                            }
                         }
                     }
                 }
@@ -222,9 +213,7 @@ impl FileWatcher {
                         file_path: Some(file_path_str.clone()),
                     };
                     if self.sender.send(raw).await.is_err() {
-                        return Err(logbog_core::Error::Collector(
-                            "Log channel closed".into(),
-                        ));
+                        return Err(logbog_core::Error::Collector("Log channel closed".into()));
                     }
                     lines_read += 1;
                 }
@@ -309,7 +298,10 @@ mod tests {
         watcher.add_file(log_file.clone(), "test".into(), "main".into());
 
         // Read the existing lines
-        watcher.read_new_lines(&log_file.canonicalize().unwrap()).await.unwrap();
+        watcher
+            .read_new_lines(&log_file.canonicalize().unwrap())
+            .await
+            .unwrap();
 
         let line1 = rx.try_recv().unwrap();
         assert_eq!(line1.content, "line 1");
@@ -331,7 +323,10 @@ mod tests {
             writeln!(f, "line 3").unwrap();
         }
 
-        watcher.read_new_lines(&log_file.canonicalize().unwrap()).await.unwrap();
+        watcher
+            .read_new_lines(&log_file.canonicalize().unwrap())
+            .await
+            .unwrap();
 
         let line3 = rx.try_recv().unwrap();
         assert_eq!(line3.content, "line 3");

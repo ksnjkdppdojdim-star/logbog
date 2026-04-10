@@ -213,24 +213,22 @@ impl PackManifest {
         }
 
         // Validate regex pattern if provided
-        if let Some(ref pattern) = source.pattern {
-            if Regex::new(pattern).is_err() {
+        if let Some(ref pattern) = source.pattern
+            && Regex::new(pattern).is_err() {
                 return Err(logbog_core::Error::PackInvalid(format!(
                     "source '{}' has invalid regex pattern",
                     source.name
                 )));
             }
-        }
 
         // Validate multiline_start regex if provided
-        if let Some(ref pattern) = source.multiline_start {
-            if Regex::new(pattern).is_err() {
+        if let Some(ref pattern) = source.multiline_start
+            && Regex::new(pattern).is_err() {
                 return Err(logbog_core::Error::PackInvalid(format!(
                     "source '{}' has invalid multiline_start regex",
                     source.name
                 )));
             }
-        }
 
         // Schema field type validation
         if let Some(ref schema) = self.schema {

@@ -3,7 +3,12 @@ use logbog_core::Config;
 use logbog_storage::{LogQuery, LogStore};
 use std::path::Path;
 
-pub fn run(config_path: &str, source: Option<&str>, pack: Option<&str>, n: usize) -> anyhow::Result<()> {
+pub fn run(
+    config_path: &str,
+    source: Option<&str>,
+    pack: Option<&str>,
+    n: usize,
+) -> anyhow::Result<()> {
     let path = Path::new(config_path);
     if !path.exists() {
         output::error("LogBog is not initialized. Run 'logbog init' first.");

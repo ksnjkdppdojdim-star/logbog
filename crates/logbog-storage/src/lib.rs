@@ -4,7 +4,7 @@
 //! pour les requêtes SQL, le batch insert et la rétention.
 
 use chrono::{DateTime, Utc};
-use duckdb::{params, Connection};
+use duckdb::{Connection, params};
 use logbog_core::{LogEntry, LogLevel};
 use std::path::{Path, PathBuf};
 use tracing::{debug, info};
@@ -56,8 +56,9 @@ impl LogStore {
 
     /// Crée une base DuckDB en mémoire (pour les tests).
     pub fn open_in_memory() -> logbog_core::Result<Self> {
-        let conn = Connection::open_in_memory()
-            .map_err(|e| logbog_core::Error::Storage(format!("Failed to open in-memory DB: {e}")))?;
+        let conn = Connection::open_in_memory().map_err(|e| {
+            logbog_core::Error::Storage(format!("Failed to open in-memory DB: {e}"))
+        })?;
         let store = Self {
             conn,
             db_path: PathBuf::from(":memory:"),
@@ -93,8 +94,7 @@ impl LogStore {
 
     /// Insère une entrée de log.
     pub fn insert(&self, entry: &LogEntry) -> logbog_core::Result<()> {
-        let fields_json =
-            serde_json::to_string(&entry.fields).unwrap_or_else(|_| "{}".to_string());
+        let fields_json = serde_json::to_string(&entry.fields).unwrap_or_else(|_| "{}".to_string());
         let ts = entry.timestamp.to_rfc3339();
 
         self.conn
@@ -173,9 +173,7 @@ impl LogStore {
             .map_err(|e| logbog_core::Error::Storage(format!("Query prepare: {e}")))?;
 
         let rows = stmt
-            .query_map([], |row| {
-                Ok(row_to_log_entry(row))
-            })
+            .query_map([], |row| Ok(row_to_log_entry(row)))
             .map_err(|e| logbog_core::Error::Storage(format!("Query execute: {e}")))?;
 
         let mut entries = Vec::new();
@@ -193,7 +191,9 @@ impl LogStore {
 
     /// Requête structurée avec filtres.
     pub fn query(&self, filter: &LogQuery) -> logbog_core::Result<Vec<LogEntry>> {
-        let mut sql = String::from("SELECT id, timestamp, source, host, level, message, fields, raw, pack FROM logs WHERE 1=1");
+        let mut sql = String::from(
+            "SELECT id, timestamp, source, host, level, message, fields, raw, pack FROM logs WHERE 1=1",
+        );
         let mut param_values: Vec<String> = Vec::new();
 
         if let Some(ref source) = filter.source {
@@ -257,9 +257,7 @@ impl LogStore {
             .collect();
 
         let rows = stmt
-            .query_map(params_refs.as_slice(), |row| {
-                Ok(row_to_log_entry(row))
-            })
+            .query_map(params_refs.as_slice(), |row| Ok(row_to_log_entry(row)))
             .map_err(|e| logbog_core::Error::Storage(format!("Query execute: {e}")))?;
 
         let mut entries = Vec::new();
@@ -506,7 +504,12 @@ mod tests {
             .insert(&make_entry("access", "nginx", LogLevel::Info, "GET /"))
             .unwrap();
         store
-            .insert(&make_entry("error", "nginx", LogLevel::Error, "upstream timeout"))
+            .insert(&make_entry(
+                "error",
+                "nginx",
+                LogLevel::Error,
+                "upstream timeout",
+            ))
             .unwrap();
         store
             .insert(&make_entry("error", "php-fpm", LogLevel::Fatal, "segfault"))
@@ -576,7 +579,12 @@ mod tests {
         let store = LogStore::open_in_memory().unwrap();
 
         store
-            .insert(&make_entry("app", "test", LogLevel::Error, "upstream timeout"))
+            .insert(&make_entry(
+                "app",
+                "test",
+                LogLevel::Error,
+                "upstream timeout",
+            ))
             .unwrap();
         store
             .insert(&make_entry("app", "test", LogLevel::Info, "connection OK"))
@@ -670,9 +678,7 @@ mod tests {
         let store = LogStore::open_in_memory().unwrap();
 
         let mut entry = make_entry("access", "nginx", LogLevel::Info, "GET /api");
-        entry
-            .fields
-            .insert("status".into(), serde_json::json!(200));
+        entry.fields.insert("status".into(), serde_json::json!(200));
         entry
             .fields
             .insert("method".into(), serde_json::json!("GET"));
@@ -681,7 +687,10 @@ mod tests {
         let results = store
             .query_sql("SELECT id, timestamp, source, host, level, message, fields, raw, pack FROM logs LIMIT 1")
             .unwrap();
-        assert_eq!(results[0].fields.get("status"), Some(&serde_json::json!(200)));
+        assert_eq!(
+            results[0].fields.get("status"),
+            Some(&serde_json::json!(200))
+        );
         assert_eq!(
             results[0].fields.get("method"),
             Some(&serde_json::json!("GET"))

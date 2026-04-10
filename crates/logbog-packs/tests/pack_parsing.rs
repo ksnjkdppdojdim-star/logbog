@@ -143,7 +143,8 @@ fn test_nginx_access_log_100_percent() {
     let (parsed, total, failed) = parse_fixture(&engine, "nginx_access.log", "nginx", "access");
     assert!(total > 0, "Fixture is empty");
     assert_eq!(
-        parsed, total,
+        parsed,
+        total,
         "Failed {}/{total} lines: {failed:?}",
         total - parsed
     );
@@ -157,7 +158,8 @@ fn test_nginx_error_log_100_percent() {
     let (parsed, total, failed) = parse_fixture(&engine, "nginx_error.log", "nginx", "error");
     assert!(total > 0);
     assert_eq!(
-        parsed, total,
+        parsed,
+        total,
         "Failed {}/{total} lines: {failed:?}",
         total - parsed
     );
@@ -175,10 +177,7 @@ fn test_nginx_access_fields_extraction() {
         entry.fields.get("client_ip"),
         Some(&serde_json::json!("93.184.216.34"))
     );
-    assert_eq!(
-        entry.fields.get("method"),
-        Some(&serde_json::json!("GET"))
-    );
+    assert_eq!(entry.fields.get("method"), Some(&serde_json::json!("GET")));
     assert_eq!(
         entry.fields.get("uri"),
         Some(&serde_json::json!("/api/users"))
@@ -199,7 +198,8 @@ fn test_mysql_error_log_100_percent() {
     let (parsed, total, failed) = parse_fixture(&engine, "mysql_error.log", "mysql", "error");
     assert!(total > 0);
     assert_eq!(
-        parsed, total,
+        parsed,
+        total,
         "Failed {}/{total} lines: {failed:?}",
         total - parsed
     );
@@ -239,7 +239,8 @@ fn test_systemd_journal_100_percent() {
         parse_fixture(&engine, "systemd_journal.jsonl", "systemd", "journal");
     assert!(total > 0);
     assert_eq!(
-        parsed, total,
+        parsed,
+        total,
         "Failed {}/{total} lines: {failed:?}",
         total - parsed
     );
@@ -250,11 +251,11 @@ fn test_phpfpm_error_log_100_percent() {
     let mut engine = PackEngine::new();
     engine.load_pack(&phpfpm_manifest()).unwrap();
 
-    let (parsed, total, failed) =
-        parse_fixture(&engine, "php_fpm_error.log", "php-fpm", "error");
+    let (parsed, total, failed) = parse_fixture(&engine, "php_fpm_error.log", "php-fpm", "error");
     assert!(total > 0);
     assert_eq!(
-        parsed, total,
+        parsed,
+        total,
         "Failed {}/{total} lines: {failed:?}",
         total - parsed
     );

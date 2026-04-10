@@ -98,10 +98,8 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
             pack: "syslog".into(),
             source: "syslog-receiver".into(),
         };
-        let receiver = logbog_collector::syslog_receiver::SyslogReceiver::new(
-            syslog_sender,
-            syslog_config,
-        );
+        let receiver =
+            logbog_collector::syslog_receiver::SyslogReceiver::new(syslog_sender, syslog_config);
         tokio::spawn(async move {
             if let Err(e) = receiver.run().await {
                 tracing::warn!(error = %e, "Syslog receiver stopped");
@@ -114,7 +112,7 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
     }
 
     // Start journal reader if systemd pack is installed
-    let has_systemd = engine.pack_names().iter().any(|n| *n == "systemd");
+    let has_systemd = engine.pack_names().contains(&"systemd");
     if has_systemd {
         let journal_sender = sender.clone();
         let reader =
@@ -161,11 +159,9 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
         match timeout {
             Ok(Some(raw_line)) => {
                 // Parse the line using the appropriate pack/source parser
-                if let Some(entry) = engine.parse_line(
-                    &raw_line.content,
-                    &raw_line.pack,
-                    &raw_line.source,
-                ) {
+                if let Some(entry) =
+                    engine.parse_line(&raw_line.content, &raw_line.pack, &raw_line.source)
+                {
                     batch.push(entry);
                 }
 

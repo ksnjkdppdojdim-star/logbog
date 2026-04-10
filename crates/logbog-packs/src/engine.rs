@@ -5,7 +5,7 @@ use logbog_parser::json::JsonParser;
 use logbog_parser::logfmt::LogfmtParser;
 use logbog_parser::regex_parser::RegexParser;
 use logbog_parser::syslog::{SyslogParser, SyslogRfc};
-use logbog_parser::{to_log_entry, Parser};
+use logbog_parser::{Parser, to_log_entry};
 
 use crate::manifest::{PackManifest, PackSource};
 
@@ -129,8 +129,7 @@ impl PackEngine {
 
     /// Check if a source supports multiline parsing.
     pub fn is_multiline(&self, pack: &str, source: &str) -> bool {
-        self.get_source(pack, source)
-            .is_some_and(|s| s.multiline)
+        self.get_source(pack, source).is_some_and(|s| s.multiline)
     }
 
     /// Number of loaded packs.
@@ -307,10 +306,7 @@ format = "json"
         let entry = engine.parse_line(line, "nginx", "access").unwrap();
         assert_eq!(entry.source, "access");
         assert_eq!(entry.pack, "nginx");
-        assert_eq!(
-            entry.fields.get("status"),
-            Some(&serde_json::json!(200))
-        );
+        assert_eq!(entry.fields.get("status"), Some(&serde_json::json!(200)));
         assert_eq!(
             entry.fields.get("method"),
             Some(&serde_json::Value::String("GET".into()))
@@ -323,7 +319,8 @@ format = "json"
         let mut engine = PackEngine::new();
         engine.load_pack(&nginx_manifest()).unwrap();
 
-        let line = "2026/04/09 10:15:30 [error] 1234#0: *5678 upstream timed out, client: 192.168.1.1";
+        let line =
+            "2026/04/09 10:15:30 [error] 1234#0: *5678 upstream timed out, client: 192.168.1.1";
         let entry = engine.parse_line(line, "nginx", "error").unwrap();
         assert_eq!(entry.level, logbog_core::LogLevel::Error);
         assert!(entry.message.contains("upstream timed out"));
@@ -349,8 +346,7 @@ format = "json"
         let mut engine = PackEngine::new();
         engine.load_pack(&json_manifest()).unwrap();
 
-        let line =
-            r#"{"timestamp":"2026-04-09T10:00:00Z","level":"error","message":"service crashed","unit":"nginx.service"}"#;
+        let line = r#"{"timestamp":"2026-04-09T10:00:00Z","level":"error","message":"service crashed","unit":"nginx.service"}"#;
         let entry = engine.parse_line(line, "systemd", "journal").unwrap();
         assert_eq!(entry.level, logbog_core::LogLevel::Error);
         assert_eq!(entry.message, "service crashed");
