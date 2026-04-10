@@ -1,18 +1,14 @@
-//! Moteur de corrélation et couche d'intelligence pour LogBog.
+//! Moteur de corrélation pour LogBog.
 //!
-//! Phase 3+ — structure de base posée, implémentation à venir.
+//! Extrait les identifiants des logs, les corrèle dans une fenêtre temporelle,
+//! et détecte les chaînes causales (502, OOM, etc.).
 
-/// Placeholder pour le moteur de corrélation.
-pub struct CorrelationEngine;
+pub mod chains;
+pub mod correlator;
+pub mod extractor;
+pub mod rules;
 
-impl CorrelationEngine {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for CorrelationEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub use chains::{CausalChain, ChainEntry, ChainRole};
+pub use correlator::Correlator;
+pub use extractor::{ExtractedIds, MatchField, extract};
+pub use rules::{CorrelationRule, parse_rule};

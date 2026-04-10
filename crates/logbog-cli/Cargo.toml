@@ -16,6 +16,9 @@ logbog-packs = { workspace = true }
 logbog-collector = { workspace = true }
 logbog-parser = { workspace = true }
 logbog-storage = { workspace = true }
+logbog-engine = { workspace = true }
+logbog-api = { workspace = true }
+axum = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 tracing = { workspace = true }

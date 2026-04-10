@@ -1,18 +1,12 @@
-//! Serveur API REST et gRPC pour LogBog.
+//! Serveur API REST pour LogBog.
 //!
-//! Phase 4+ — structure de base posée, implémentation à venir.
+//! Fournit des endpoints pour interroger les logs, les corrélations,
+//! les incidents et le statut du service.
 
-/// Placeholder pour le serveur API.
-pub struct ApiServer;
+pub mod handlers;
+pub mod routes;
+pub mod state;
+pub mod websocket;
 
-impl ApiServer {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for ApiServer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+pub use routes::build_router;
+pub use state::AppState;

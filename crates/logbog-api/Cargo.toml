@@ -8,8 +8,15 @@ description = "REST API and gRPC server for LogBog"
 
 [dependencies]
 logbog-core = { workspace = true }
+logbog-storage = { workspace = true }
+logbog-engine = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+chrono = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+ulid = { workspace = true }

@@ -105,17 +105,19 @@ impl FileWatcher {
         let mut watched_dirs = HashSet::new();
         for path in self.files.keys() {
             if let Some(parent) = path.parent()
-                && parent.exists() && watched_dirs.insert(parent.to_path_buf()) {
-                    watcher
-                        .watch(parent, RecursiveMode::NonRecursive)
-                        .map_err(|e| {
-                            logbog_core::Error::Collector(format!(
-                                "Failed to watch {}: {e}",
-                                parent.display()
-                            ))
-                        })?;
-                    info!(dir = %parent.display(), "Watching directory");
-                }
+                && parent.exists()
+                && watched_dirs.insert(parent.to_path_buf())
+            {
+                watcher
+                    .watch(parent, RecursiveMode::NonRecursive)
+                    .map_err(|e| {
+                        logbog_core::Error::Collector(format!(
+                            "Failed to watch {}: {e}",
+                            parent.display()
+                        ))
+                    })?;
+                info!(dir = %parent.display(), "Watching directory");
+            }
         }
 
         // Initial catch-up: read from last known offset to current end
@@ -136,13 +138,14 @@ impl FileWatcher {
                         for path in &event.paths {
                             let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
                             if self.files.contains_key(&canonical)
-                                && let Err(e) = self.read_new_lines(&canonical).await {
-                                    warn!(
-                                        path = %canonical.display(),
-                                        error = %e,
-                                        "Failed to read new lines"
-                                    );
-                                }
+                                && let Err(e) = self.read_new_lines(&canonical).await
+                            {
+                                warn!(
+                                    path = %canonical.display(),
+                                    error = %e,
+                                    "Failed to read new lines"
+                                );
+                            }
                         }
                     }
                 }

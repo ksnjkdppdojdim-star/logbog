@@ -2,9 +2,11 @@ use crate::output;
 use logbog_collector::bookmark::BookmarkManager;
 use logbog_collector::file_watcher::FileWatcher;
 use logbog_core::Config;
+use logbog_engine::Correlator;
 use logbog_packs::{PackEngine, PackRegistry};
 use logbog_storage::LogStore;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 pub fn run(config_path: &str, foreground: bool) -> anyhow::Result<()> {
     let path = Path::new(config_path);
@@ -65,6 +67,38 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
     let store = LogStore::open(&db_path)?;
     output::success(&format!("Storage opened: {}", db_path.display()));
 
+    // Create correlation engine
+    let correlator = Correlator::new(
+        i64::from(config.correlation.window_seconds),
+        config.correlation.min_confidence,
+    );
+    output::info(&format!(
+        "Correlation engine: window={}s, min_confidence={}",
+        config.correlation.window_seconds, config.correlation.min_confidence
+    ));
+
+    // Start REST API server
+    let api_store = LogStore::open(&db_path)?;
+    let api_correlator = Correlator::new(
+        i64::from(config.correlation.window_seconds),
+        config.correlation.min_confidence,
+    );
+    let api_state = logbog_api::AppState::new(api_store, api_correlator);
+    let live_tx = api_state.live_tx.clone();
+    let router = logbog_api::build_router(api_state);
+
+    let api_host = config.server.host.clone();
+    let api_port = config.server.port;
+    let api_addr = format!("{api_host}:{api_port}");
+    let listener = tokio::net::TcpListener::bind(&api_addr).await?;
+    output::success(&format!("API server: http://{api_addr}"));
+
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, router).await {
+            tracing::error!(error = %e, "API server error");
+        }
+    });
+
     // Create collection channel
     let (sender, mut receiver) = logbog_collector::channel(config.collector.batch_size);
 
@@ -77,7 +111,6 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
     let watch_paths = engine.all_watch_paths();
     let mut file_count = 0;
     for (path_pattern, pack, source) in &watch_paths {
-        // Skip non-file sources (like "journalctl")
         if !path_pattern.starts_with('/') {
             continue;
         }
@@ -112,8 +145,7 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
     }
 
     // Start journal reader if systemd pack is installed
-    let has_systemd = engine.pack_names().contains(&"systemd");
-    if has_systemd {
+    if engine.pack_names().contains(&"systemd") {
         let journal_sender = sender.clone();
         let reader =
             logbog_collector::journal::JournalReader::new(journal_sender, vec![], "systemd".into());
@@ -125,10 +157,8 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
         output::info("Journal reader: all units");
     }
 
-    // Drop the extra sender so the channel closes when all sources are done
     drop(sender);
 
-    // Start file watcher in a background task
     tokio::spawn(async move {
         if let Err(e) = watcher.run().await {
             tracing::warn!(error = %e, "File watcher stopped");
@@ -136,77 +166,78 @@ async fn run_pipeline(config: Config, engine: PackEngine) -> anyhow::Result<()> 
     });
 
     output::header("Pipeline running");
-    output::info(&format!(
-        "Dashboard: http://{}:{}",
-        config.server.host, config.server.port
-    ));
     output::info("Press Ctrl+C to stop");
 
-    // Ingestion loop: receive raw lines, parse them, batch insert into storage
+    // Ingestion loop with correlation
     let batch_size = config.collector.batch_size;
     let flush_interval = std::time::Duration::from_millis(config.collector.flush_interval_ms);
     let retention_days = config.storage.retention_days;
+    let correlation_enabled = config.correlation.enabled;
 
+    let correlator = Arc::new(Mutex::new(correlator));
     let mut batch = Vec::with_capacity(batch_size);
     let mut total_ingested: u64 = 0;
-    let mut last_flush = tokio::time::Instant::now();
+    let mut total_correlations: u64 = 0;
     let mut last_retention = tokio::time::Instant::now();
 
     loop {
-        // Try to receive with timeout for periodic flushing
         let timeout = tokio::time::timeout(flush_interval, receiver.recv()).await;
 
         match timeout {
             Ok(Some(raw_line)) => {
-                // Parse the line using the appropriate pack/source parser
                 if let Some(entry) =
                     engine.parse_line(&raw_line.content, &raw_line.pack, &raw_line.source)
                 {
+                    // Send to live tail WebSocket
+                    let _ = live_tx.send(serde_json::to_string(&entry).unwrap_or_default());
+
+                    // Run correlation
+                    if correlation_enabled {
+                        let corrs = correlator.lock().unwrap().process(entry.clone());
+                        total_correlations += corrs.len() as u64;
+                        for corr in &corrs {
+                            tracing::info!(
+                                confidence = corr.confidence,
+                                desc = %corr.description,
+                                "Correlation detected"
+                            );
+                        }
+                    }
+
                     batch.push(entry);
                 }
 
-                // Flush when batch is full
                 if batch.len() >= batch_size {
                     let count = store.insert_batch(&batch)?;
                     total_ingested += count as u64;
                     batch.clear();
-                    last_flush = tokio::time::Instant::now();
-                    tracing::debug!(count = count, total = total_ingested, "Flushed batch");
                 }
             }
-            Ok(None) => {
-                // Channel closed - all sources done
-                break;
-            }
+            Ok(None) => break,
             Err(_) => {
-                // Timeout - flush partial batch
                 if !batch.is_empty() {
                     let count = store.insert_batch(&batch)?;
                     total_ingested += count as u64;
                     batch.clear();
-                    last_flush = tokio::time::Instant::now();
                 }
             }
         }
 
-        // Periodic retention check (every hour)
         if last_retention.elapsed() > std::time::Duration::from_secs(3600) {
             if let Err(e) = store.apply_retention(retention_days) {
                 tracing::warn!(error = %e, "Retention policy failed");
             }
             last_retention = tokio::time::Instant::now();
         }
-
-        // Avoid busy loop warning
-        let _ = last_flush;
     }
 
-    // Final flush
     if !batch.is_empty() {
         let count = store.insert_batch(&batch)?;
         total_ingested += count as u64;
     }
 
-    output::info(&format!("Total logs ingested: {total_ingested}"));
+    output::info(&format!(
+        "Total: {total_ingested} logs ingested, {total_correlations} correlations detected"
+    ));
     Ok(())
 }
